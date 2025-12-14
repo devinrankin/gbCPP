@@ -1,0 +1,11 @@
+*.gbc
+build*/
+Build*/
+test-roms/
+roms/
+.vscode
+.vs
+.vim
+
+# Keep last to ensure .DS_Store is never tracked, even if otherwise allowed by any exception above.
+.DS_Store
