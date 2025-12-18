@@ -1,12 +1,11 @@
 #ifndef CPU_H
 #define CPU_H
-
 #include "../utils/types.h"
+#include "../mem/mmu.h"
 
 class CPU {
 public:
-    CPU();
-    ~CPU();
+    CPU(MMU& mmu_);
 
     struct FlagsRegister {
         const u8 FLAG_Z = 0x80;
@@ -85,6 +84,12 @@ public:
 
 private:
     Registers registers;
+    void INC_DEC_r8(u8 opcode);
+    void INC_DEC_r16(u8 opcode);
+    void LD_r8(u8 opcode);
+    void LD_r16(u8 opcode);
+protected:
+    MMU& mmu;
 };
 
 #endif
