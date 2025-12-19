@@ -79,16 +79,32 @@ public:
             a = (u8)((value & 0xFF00) >> 8);
             f.from_u8((u8)(value & 0x00FF));
         }
+
+        u16 get_sp() const {
+            return sp;
+        }
+        void set_sp(u16 value) {
+            sp = value;
+        }
+    };
+
+    struct RegisterPair {
+        u16 (Registers::*get)(void) const;
+        void (Registers::*set)(u16);
     };
 
     void step();
-
+    inline u8& r8_ref(u8 index) { return *r8[index]; }
 private:
     Registers registers;
-    void INC_DEC_r8(u8 opcode);
-    void INC_DEC_r16(u8 opcode);
-    void LD_r8(u8 opcode);
-    void LD_r16(u8 opcode);
+    u8* r8[8];
+    RegisterPair r16[4];
+
+    u8 alu_add(u8 lhs, u8 rhs, bool carry);
+    u8 alu_sub(u8 lhs, u8 rhs, bool carry);
+    void inc_dec(u8 opcode);
+    void inc_dec_r16(u8 opcode);
+    void ld_r_r(u8 opcode);
 protected:
     MMU& mmu;
 };
