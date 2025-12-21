@@ -13,27 +13,20 @@ public:
         static constexpr u8 FLAG_H = 0x20;
         static constexpr u8 FLAG_C = 0x10;
 
-        bool zero = false;
-        bool subtract = false;
-        bool half_carry = false;
-        bool carry = false;
+        u8 flags = 0;
 
-        u8 to_u8() const {
-            u8 flags_byte = 0;
-            if(zero) { flags_byte |= FLAG_Z; }
-            if(subtract) { flags_byte |= FLAG_N; }
-            if(half_carry) { flags_byte |= FLAG_H; }
-            if(carry) { flags_byte |= FLAG_C; }
+        bool zero() const { return flags & FLAG_Z; }
+        bool subtract() const { return flags & FLAG_N; }
+        bool half_carry() const { return flags & FLAG_H; }
+        bool carry() const { return flags & FLAG_C; }
 
-            return flags_byte;
-        }
-        void from_u8(u8 byte) {
-            byte &= 0xF0; // flag register only cares about the upper nibble, so we 0 the lower.
-            zero = (byte & FLAG_Z) != 0;
-            subtract = (byte & FLAG_N) != 0;
-            half_carry = (byte & FLAG_H) != 0;
-            carry = (byte & FLAG_C) != 0;
-        }
+        void set_zero(bool enabled) { enabled ? flags |= FLAG_Z : flags &= ~FLAG_Z; }
+        void set_subtract(bool enabled) { enabled ? flags |= FLAG_N : flags &= ~FLAG_N; }
+        void set_half_carry(bool enabled) { enabled ? flags |= FLAG_H : flags &= ~FLAG_H; }
+        void set_carry(bool enabled) { enabled ? flags |= FLAG_C : flags &= ~FLAG_C; }
+
+        u8 to_u8() const { return flags & 0xF0; }
+        void from_u8(u8 value) { flags = value & 0xF0; }
     };
 
     struct Registers {
@@ -48,40 +41,27 @@ public:
         u16 sp;
         u16 pc;
 
-        u16 get_bc() const {
-            return (u16)b << 8 | (u16)c;
-        }
-        void set_bc(u16 value) {
-            b = (u8)((value & 0xFF00) >> 8);
-            c = (u8)(value & 0x00FF);
-        }
+        u16 get_bc() const { return static_cast<u16>(b) << 8 | static_cast<u16>(c); }
+        u16 get_af() const { return static_cast<u16>(a) << 8 | static_cast<u16>(f.to_u8()); }
+        u16 get_sp() const { return sp; }
+        u16 get_de() const { return static_cast<u16>(d) << 8 | static_cast<u16>(e); }
+        u16 get_hl() const { return static_cast<u16>(h) << 8 | static_cast<u16>(l); }
 
-        u16 get_de() const {
-            return (u16)d << 8 | (u16)e;
+        void set_bc(u16 value) {
+            b = static_cast<u8>((value & 0xFF00) >> 8);
+            c = static_cast<u8>(value & 0x00FF);
         }
         void set_de(u16 value) {
-            d = (u8)((value & 0xFF00) >> 8);
-            e = (u8)(value & 0x00FF);
-        }
-
-        u16 get_hl() const {
-            return (u16)h << 8 | (u16)l;
+            d = static_cast<u8>((value & 0xFF00) >> 8);
+            e = static_cast<u8>(value & 0x00FF);
         }
         void set_hl(u16 value) {
-            h = (u8)((value & 0xFF00) >> 8);
-            l = (u8)(value & 0x00FF);
-        }
-
-        u16 get_af() const {
-            return (u16)a << 8 | (u16)f.to_u8();
+            h = static_cast<u8>((value & 0xFF00) >> 8);
+            l = static_cast<u8>(value & 0x00FF);
         }
         void set_af(u16 value) {
-            a = (u8)((value & 0xFF00) >> 8);
-            f.from_u8((u8)(value & 0x00FF));
-        }
-
-        u16 get_sp() const {
-            return sp;
+            a = static_cast<u8>((value & 0xFF00) >> 8);
+            f.from_u8(static_cast<u8>(value & 0x00FF));
         }
         void set_sp(u16 value) {
             sp = value;
@@ -94,24 +74,25 @@ public:
     };
 
     void step();
-    inline u8& r8_ref(u8 index) { return *r8[index]; }
-    inline RegisterPair r16_ref(u8 index) { return r16[index]; };
 private:
     Registers registers;
     u8* r8[8];
     RegisterPair r16[4];
 
-    // ALU
     u8 alu_add(u8 lhs, u8 rhs, bool carry);
     u8 alu_sub(u8 lhs, u8 rhs, bool carry);
+
+    // ALU
+    u8 a_alu_r8(u8 opcode);
+    u8 a_alu_imm8(u8 opcode);
     void inc_dec(u8 opcode);
+    void inc_dec_new(u8 opcode);
     void inc_dec_r16(u8 opcode);
-    void cp_r_r();
+
     // LD
     void ld_r8_r8(u8 opcode);
     void ld_r8_imm8(u8 opcode);
     void ld_r16_imm16(u8 opcode);
-    void ld_r8_addr(u8 opcode);
     void ld_a(u8 opcode);
 protected:
     MMU& mmu;
