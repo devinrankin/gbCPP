@@ -19,6 +19,8 @@ CPU::CPU(MMU& mmu_) : mmu(mmu_) {
 void CPU::step() {
     u8 opcode = mmu.read_byte(registers.pc++);
 
+    // the first two bits of an opcode can be grouped into four families
+    // https://gbdev.io/pandocs/CPU_Instruction_Set.html
     switch(opcode >> 6) {
         case 0b00: break;
         case 0b01: break;
@@ -77,15 +79,15 @@ void CPU::inc_dec_r16(u8 opcode) {
     // storing carry flag since ALU alters but INC/DEC do not
     bool old_carry = registers.f.carry;
 
-    u16 reg = (registers.*(r16[index].get))();
+    u16 reg = (registers.*(r16_ref(index).get))();
     reg = dec ? alu_sub(reg, 1, false) : alu_add(reg, 1, false);
-    (registers.*(r16[index].set))(reg);
+    (registers.*(r16_ref(index).set))(reg);
 
     // restoring carry flag
     registers.f.carry = old_carry;
 }
 
-void CPU::ld_r_r(u8 opcode) {
+void CPU::ld_r8_r8(u8 opcode) {
     // ld [hl], [hl], which yields halt
     if(opcode == 0x76) {
         // todo: implement halt
@@ -96,4 +98,32 @@ void CPU::ld_r_r(u8 opcode) {
 
     u8 value  = r8_ref(src);
     r8_ref(dst) = value;
+}
+
+void CPU::ld_r8_imm8(u8 opcode) {
+    u8 dst = (opcode >> 3) & 0b111;
+    u8 value = mmu.read_byte(registers.pc++);
+
+    r8_ref(dst) = value;
+}
+
+void CPU::ld_r16_imm16(u8 opcode) {
+    u8 dst = (opcode >> 4) & 0b11;
+    u16 value = mmu.read_byte(registers.pc++) << 8 | mmu.read_byte(registers.pc++);
+    (registers.*(r16_ref(dst).set))(value);
+}
+
+void CPU::ld_a(u8 opcode) {
+    u8& reg = r8_ref(7); // register A
+    u16 reg_pair = (opcode >> 4) & 0b11;
+    u16 addr = (registers.*(r16_ref(reg_pair).get))();
+
+    // this bit determines if the 16-bit register indirect address is the source or dest
+    bool is_src = (opcode >> 3) & 0b1;
+
+    if(is_src) {
+        reg = mmu.read_byte(addr);
+    } else {
+        mmu.write_byte(addr, reg);
+    }
 }

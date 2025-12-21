@@ -95,16 +95,24 @@ public:
 
     void step();
     inline u8& r8_ref(u8 index) { return *r8[index]; }
+    inline RegisterPair r16_ref(u8 index) { return r16[index]; };
 private:
     Registers registers;
     u8* r8[8];
     RegisterPair r16[4];
 
+    // ALU
     u8 alu_add(u8 lhs, u8 rhs, bool carry);
     u8 alu_sub(u8 lhs, u8 rhs, bool carry);
     void inc_dec(u8 opcode);
     void inc_dec_r16(u8 opcode);
-    void ld_r_r(u8 opcode);
+    void cp_r_r();
+    // LD
+    void ld_r8_r8(u8 opcode);
+    void ld_r8_imm8(u8 opcode);
+    void ld_r16_imm16(u8 opcode);
+    void ld_r8_addr(u8 opcode);
+    void ld_a(u8 opcode);
 protected:
     MMU& mmu;
 };
