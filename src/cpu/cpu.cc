@@ -178,6 +178,60 @@ void CPU::alu_a_r8(u8 opcode) {
     }
 }
 
+void CPU::jp(u8 opcode) {
+    // handling jp HL
+    if(opcode == 0xE9) {
+        registers.pc += (registers.*(r16[2].get))();
+        return;
+    }
+
+    u16 offset = mmu.read_byte(registers.pc++) | mmu.read_byte(registers.pc++);
+    bool is_cond = opcode & 0b1;
+
+    if(!is_cond) {
+        registers.pc += offset;
+        return;
+    }
+
+    u8 cond = (opcode >> 3) & 0b11;
+    bool jump;
+    switch (cond) {
+        case 0b00: jump = !registers.f.zero(); break;
+        case 0b01: jump = registers.f.zero(); break;
+        case 0b10: jump = !registers.f.carry(); break;
+        case 0b11: jump = registers.f.carry(); break;
+    }
+
+    if(jump) {
+        registers.pc += offset;
+        branched = true;
+    }
+}
+
+void CPU::jr(u8 opcode) {
+    i8 offset = static_cast<i8>(mmu.read_byte(registers.pc++));
+    bool is_cond = (opcode >> 5) & 0b1;
+
+    if(!is_cond) {
+        registers.pc += offset;
+        return;
+    }
+
+    u8 cond = (opcode >> 3) & 0b11;
+    bool jump;
+    switch (cond) {
+        case 0b00: jump = !registers.f.zero(); break;
+        case 0b01: jump = registers.f.zero(); break;
+        case 0b10: jump = !registers.f.carry(); break;
+        case 0b11: jump = registers.f.carry(); break;
+    }
+
+    if(jump) {
+        registers.pc += offset;
+        branched = true;
+    }
+}
+
 void CPU::init_opcodes() {
     for (OpHandler& fn : opcode_table) {
         fn = &CPU::op_illegal;
