@@ -79,16 +79,24 @@ private:
     u8* r8[8];
     RegisterPair r16[4];
 
+    u8 read_r8(u8 index) {
+        return index == 6 ? mmu.read_byte(registers.get_hl()) : *r8[index];
+    }
+    void write_r8(u8 index, u8 value) {
+        if(index == 6) {
+            mmu.write_byte(registers.get_hl(), value);
+        } else {
+            *r8[index] = value;
+        }
+    }
+
     u8 alu_add(u8 lhs, u8 rhs, bool carry);
     u8 alu_sub(u8 lhs, u8 rhs, bool carry);
-
     // ALU
-    u8 a_alu_r8(u8 opcode);
-    u8 a_alu_imm8(u8 opcode);
+    void alu_a_r8(u8 opcode);
+    void alu_a_imm8(u8 opcode);
     void inc_dec(u8 opcode);
-    void inc_dec_new(u8 opcode);
     void inc_dec_r16(u8 opcode);
-
     // LD
     void ld_r8_r8(u8 opcode);
     void ld_r8_imm8(u8 opcode);
