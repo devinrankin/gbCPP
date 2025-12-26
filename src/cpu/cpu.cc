@@ -1,4 +1,5 @@
 #include "cpu.h"
+#include "../utils/logging.h"
 
 CPU::CPU(MMU& mmu_) : mmu(mmu_) {
     r8[0] = &registers.b;
@@ -49,6 +50,16 @@ u8 CPU::alu_sub(u8 lhs, u8 rhs, bool carry) {
     registers.f.set_carry(result > 0xFF);
 
     return static_cast<u8>(result);
+}
+
+void CPU::op_illegal(u8 opcode) {
+    halted = true;
+    // todo: implement logging utility
+    LOG_ERROR(
+        "Illegal opcode %02X at pc=%04X",
+        opcode,
+        registers.pc - 1
+    );
 }
 
 void CPU::inc_dec(u8 opcode) {
@@ -164,5 +175,53 @@ void CPU::alu_a_r8(u8 opcode) {
         case 7:
             u8 discarded = alu_sub(accumulator, rhs, false);
             break;
+    }
+}
+
+void CPU::init_opcodes() {
+    for (OpHandler& fn : opcode_table) {
+        fn = &CPU::op_illegal;
+    }
+
+    // ld r16, imm16
+    for(u8 reg = 0; reg < 4; reg++) {
+        opcode_table[(reg << 4) | 0x01] = &CPU::ld_r16_imm16;
+    }
+
+    // ld r8, imm8
+    // ld r8, r8
+    for(u8 reg = 0; reg < 8; reg++) {
+        opcode_table[(reg << 3) | 0x06] = &CPU::ld_r8_imm8;
+    }
+
+    for(u8 reg = 0; reg < 8; reg++) {
+        opcode_table[0x40 + reg] = &CPU::ld_r8_r8;
+    }
+
+    for(u8 reg = 0; reg < 8; reg++) {
+        opcode_table[0x70 + reg] = &CPU::ld_r8_r8;
+    }
+
+    // inc r8 ; dec r8
+    // inc r18; dec r16
+    for(int reg = 0; reg < 4; reg++) {
+        opcode_table[(reg << 4) | 0x03] = &CPU::inc_dec;
+        opcode_table[(reg << 4) | 0x0B] = &CPU::inc_dec;
+    }
+
+    for(int reg = 0; reg < 8; reg++) {
+        opcode_table[(reg << 3) | 0x04] = &CPU::inc_dec;
+        opcode_table[(reg << 3) | 0x05] = &CPU::inc_dec;
+    }
+
+    // alu ops (e.g. add a, r8 ; add a, imm8)
+    for(int op = 0; op < 8; op++) {
+        for(int reg = 0; reg < 8; reg++) {
+            opcode_table[0x40 | (op << 3) | reg] = &CPU::alu_a_r8;
+        }
+    }
+
+    for(int op = 0; op < 8; op++) {
+        opcode_table[0x40 | (op << 3) | 0x06] = &CPU::alu_a_imm8;
     }
 }

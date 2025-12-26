@@ -75,9 +75,12 @@ public:
 
     void step();
 private:
+    using OpHandler = void (CPU::*)(u8 opcode);
     Registers registers;
     u8* r8[8];
     RegisterPair r16[4];
+    OpHandler opcode_table[256];
+    bool halted;
 
     u8 read_r8(u8 index) {
         return index == 6 ? mmu.read_byte(registers.get_hl()) : *r8[index];
@@ -89,6 +92,9 @@ private:
             *r8[index] = value;
         }
     }
+
+    void init_opcodes();
+    void op_illegal(u8 opcode);
 
     u8 alu_add(u8 lhs, u8 rhs, bool carry);
     u8 alu_sub(u8 lhs, u8 rhs, bool carry);
