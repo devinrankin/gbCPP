@@ -119,3 +119,50 @@ void CPU::ld_a(u8 opcode) {
         mmu.write_byte(addr, registers.a);
     }
 }
+
+// todo: n8, r8, and imm8 are similar enough to create grouped functions of
+void CPU::alu_a_r8(u8 opcode) {
+    u8& accumulator = registers.a;
+    u8 rhs = read_r8(opcode & 0b111);
+    u8 alu_op = (opcode >> 3) & 0b111;
+    bool carry = registers.f.carry();
+
+    switch(alu_op) {
+        case 0:
+            accumulator = alu_add(accumulator, rhs, false);
+            break;
+        case 1:
+            accumulator = alu_add(accumulator, rhs, carry);
+            break;
+        case 2:
+            accumulator = alu_sub(accumulator, rhs, false);
+            break;
+        case 3:
+            accumulator = alu_sub(accumulator, rhs, carry);
+            break;
+        case 4:
+            accumulator &= rhs;
+            registers.f.set_zero(accumulator == 0);
+            registers.f.set_subtract(false);
+            registers.f.set_half_carry(true);
+            registers.f.set_carry(false);
+            break;
+        case 5:
+            accumulator ^= rhs;
+            registers.f.set_zero(accumulator == 0);
+            registers.f.set_subtract(false);
+            registers.f.set_half_carry(false);
+            registers.f.set_carry(false);
+            break;
+        case 6:
+            accumulator |= rhs;
+            registers.f.set_zero(accumulator == 0);
+            registers.f.set_subtract(false);
+            registers.f.set_half_carry(false);
+            registers.f.set_carry(false);
+            break;
+        case 7:
+            u8 discarded = alu_sub(accumulator, rhs, false);
+            break;
+    }
+}
