@@ -55,36 +55,29 @@ void CPU::inc_dec(u8 opcode) {
     u8 operand = (opcode >> 3) & 0b111;
     bool dec = opcode & 0b1;
 
-    // storing carry flag since ALU alters but INC/DEC do not
-    bool old_carry = registers.f.carry();
-
-    if(operand == 6) {
-        u16 addr = registers.get_hl();
-        u8 value = mmu.read_byte(addr);
-        value = dec ? alu_sub(value, 1, false) : alu_add(value, 1, false);
-        mmu.write_byte(addr, value);
+    u8 value = read_r8(operand);
+    if(dec) {
+        registers.f.set_subtract(true);
+        registers.f.set_half_carry((value & 0x0F) == 0x00);
+        value--;
     } else {
-        u8 value = *r8[operand];
-        value = dec ? alu_sub(value, 1, false) : alu_add(value, 1, false);
+        registers.f.set_subtract(false);
+        registers.f.set_half_carry((value & 0x0F) == 0x0F);
+        value++;
     }
+    registers.f.set_zero(value == 0);
 
-    // restoring carry flag
-    registers.f.set_carry(old_carry);
+    write_r8(operand, value);
 }
 
 void CPU::inc_dec_r16(u8 opcode) {
     u8 operand = (opcode >> 4) & 0b11;
-    bool dec = opcode & 01;
-
-    // storing carry flag since ALU alters but INC/DEC do not
-    bool old_carry = registers.f.carry();
+    bool dec = opcode & 0b1;
 
     u16 value = (registers.*(r16[operand].get))();
-    value = dec ? alu_sub(value, 1, false) : alu_add(value, 1, false);
-    (registers.*(r16[operand].set))(value);
+    dec ? value-- : value++;
 
-    // restoring carry flag
-    registers.f.set_carry(old_carry);
+    (registers.*(r16[operand].set))(value);
 }
 
 void CPU::ld_r8_r8(u8 opcode) {
@@ -96,14 +89,14 @@ void CPU::ld_r8_r8(u8 opcode) {
     u8 dst = (opcode >> 3) & 0b111;
     u8 src = opcode & 0b111;
 
-    *r8[dst] = *r8[src];
+    write_r8(dst, read_r8(src));
 }
 
 void CPU::ld_r8_imm8(u8 opcode) {
     u8 dst = (opcode >> 3) & 0b111;
     u8 value = mmu.read_byte(registers.pc++);
 
-    *r8[dst] = value;
+    write_r8(read_r8(dst), value);
 }
 
 void CPU::ld_r16_imm16(u8 opcode) {
@@ -114,7 +107,6 @@ void CPU::ld_r16_imm16(u8 opcode) {
 }
 
 void CPU::ld_a(u8 opcode) {
-    u8 accumulator = *r8[7]; // register A
     u16 reg = (opcode >> 4) & 0b11;
     u16 addr = (registers.*(r16[reg].get))();
 
@@ -122,22 +114,8 @@ void CPU::ld_a(u8 opcode) {
     bool is_src = (opcode >> 3) & 0b1;
 
     if(is_src) {
-        accumulator = mmu.read_byte(addr);
+        registers.a = mmu.read_byte(addr);
     } else {
-        mmu.write_byte(addr, accumulator);
+        mmu.write_byte(addr, registers.a);
     }
-}
-
-u8 CPU::a_alu_r8(u8 opcode) {
-    u8 reg = *r8[opcode & 0b111];
-    u8 alu_op = (opcode >> 3) & 0b111;
-    bool carry = registers.f.carry();
-
-    switch(alu_op) {
-        case 0:
-            return alu_add(registers.a, reg, carry);
-        case 2:
-            return alu_sub(registers.a, reg, carry);
-    }
-    return 0;
 }
