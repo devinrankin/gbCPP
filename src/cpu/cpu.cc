@@ -30,6 +30,19 @@ void CPU::step() {
     }
 }
 
+void CPU::stack_push(u16 value) {
+    u8 high = (value >> 8) & 0xFF;
+    u8 low = value & 0xFF;
+    mmu.write_byte(--registers.sp, high);
+    mmu.write_byte(--registers.sp, low);
+}
+
+u16 CPU::stack_pop() {
+    u8 low = mmu.read_byte(registers.sp++);
+    u8 high = mmu.read_byte(registers.sp++);
+    return static_cast<u16>((high << 8) | low);
+}
+
 u8 CPU::alu_add(u8 lhs, u8 rhs, bool carry) {
     u16 result = lhs + rhs + (carry ? 1 : 0);
 
@@ -112,7 +125,9 @@ void CPU::ld_r8_imm8(u8 opcode) {
 
 void CPU::ld_r16_imm16(u8 opcode) {
     u8 dst = (opcode >> 4) & 0b11;
-    u16 value = mmu.read_byte(registers.pc++) << 8 | mmu.read_byte(registers.pc++);
+    u8 low = mmu.read_byte(registers.pc++);
+    u8 high = mmu.read_byte(registers.pc++);
+    u16 value = (high << 8) | low;
 
     (registers.*(r16[dst].set))(value);
 }
@@ -185,7 +200,9 @@ void CPU::jp(u8 opcode) {
         return;
     }
 
-    u16 offset = mmu.read_byte(registers.pc++) | mmu.read_byte(registers.pc++);
+    u8 low = mmu.read_byte(registers.pc++);
+    u8 high = mmu.read_byte(registers.pc++);
+    u16 offset = (high << 8) | low;
     bool is_cond = opcode & 0b1;
 
     if(!is_cond) {
@@ -204,7 +221,7 @@ void CPU::jp(u8 opcode) {
 
     if(jump) {
         registers.pc += offset;
-        branched = true;
+        branch_taken = true;
     }
 }
 
@@ -228,7 +245,62 @@ void CPU::jr(u8 opcode) {
 
     if(jump) {
         registers.pc += offset;
-        branched = true;
+        branch_taken = true;
+    }
+}
+
+void CPU::call(u8 opcode) {
+    bool is_cond = opcode & 0b1;
+
+
+    u8 low = mmu.read_byte(registers.pc++);
+    u8 high = mmu.read_byte(registers.pc++);
+    u16 addr = (high << 8) | low;
+
+    if(!is_cond) {
+        stack_push(registers.sp);
+        return;
+    }
+
+    u8 cond = (opcode >> 3) & 0b11;
+    bool call;
+    switch (cond) {
+        case 0b00: call = !registers.f.zero(); break;
+        case 0b01: call = registers.f.zero(); break;
+        case 0b10: call = !registers.f.carry(); break;
+        case 0b11: call = registers.f.carry(); break;
+    }
+
+    if(call) {
+        stack_push(registers.sp);
+        branch_taken = true;
+    }
+}
+
+void CPU::pop(u8 opcode) {
+    bool is_ret = (opcode >> 3) & 0b1;
+
+    if(!is_ret) {
+        u8 index = (opcode >> 4) & 0b11;
+        (registers.*(r16[index].set))(stack_pop());
+    }
+
+    bool is_cond = opcode & 0b1;
+    if(!is_cond) {
+        registers.pc = stack_pop();
+    }
+
+    u8 cond = (opcode >> 3) & 0b11;
+    bool ret;
+    switch (cond) {
+        case 0b00: ret = !registers.f.zero(); break;
+        case 0b01: ret = registers.f.zero(); break;
+        case 0b10: ret = !registers.f.carry(); break;
+        case 0b11: ret = registers.f.carry(); break;
+    }
+
+    if(ret) {
+        registers.pc = stack_pop();
     }
 }
 

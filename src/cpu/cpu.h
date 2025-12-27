@@ -81,7 +81,7 @@ private:
     RegisterPair r16[4];
     OpHandler opcode_table[256];
     bool halted;
-    bool branched;
+    bool branch_taken;
 
     u8 read_r8(u8 index) {
         return index == 6 ? mmu.read_byte(registers.get_hl()) : *r8[index];
@@ -93,6 +93,9 @@ private:
             *r8[index] = value;
         }
     }
+
+    void stack_push(u16 value);
+    u16 stack_pop();
 
     void init_opcodes();
     void op_illegal(u8 opcode);
@@ -112,6 +115,9 @@ private:
 
     void jp(u8 opcode);
     void jr(u8 opcode);
+    void call(u8 opcode);
+    void ret(u8 opcode);
+    void pop(u8 opcode);
 protected:
     MMU& mmu;
 };
