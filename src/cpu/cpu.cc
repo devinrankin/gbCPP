@@ -196,19 +196,21 @@ void CPU::alu_a_r8(u8 opcode) {
 void CPU::jp(u8 opcode) {
     // handling jp HL
     if(opcode == 0xE9) {
-        registers.pc += (registers.*(r16[2].get))();
+        registers.pc = (registers.*(r16[2].get))();
         return;
     }
 
     u8 low = mmu.read_byte(registers.pc++);
     u8 high = mmu.read_byte(registers.pc++);
     u16 offset = (high << 8) | low;
-    bool is_cond = opcode & 0b1;
 
-    if(!is_cond) {
-        registers.pc += offset;
-        return;
-    }
+    registers.pc = offset;
+}
+
+void CPU::jp_cc(u8 opcode) {
+    u8 low = mmu.read_byte(registers.pc++);
+    u8 high = mmu.read_byte(registers.pc++);
+    u16 offset = (high << 8) | low;
 
     u8 cond = (opcode >> 3) & 0b11;
     bool jump;
@@ -220,19 +222,19 @@ void CPU::jp(u8 opcode) {
     }
 
     if(jump) {
-        registers.pc += offset;
+        registers.pc = offset;
         branch_taken = true;
     }
 }
 
 void CPU::jr(u8 opcode) {
     i8 offset = static_cast<i8>(mmu.read_byte(registers.pc++));
-    bool is_cond = (opcode >> 5) & 0b1;
+    registers.pc += offset;
+}
 
-    if(!is_cond) {
-        registers.pc += offset;
-        return;
-    }
+void CPU::jr_cc(u8 opcode) {
+    i8 offset = static_cast<i8>(mmu.read_byte(registers.pc++));
+    registers.pc += offset;
 
     u8 cond = (opcode >> 3) & 0b11;
     bool jump;
@@ -250,17 +252,18 @@ void CPU::jr(u8 opcode) {
 }
 
 void CPU::call(u8 opcode) {
-    bool is_cond = opcode & 0b1;
-
-
     u8 low = mmu.read_byte(registers.pc++);
     u8 high = mmu.read_byte(registers.pc++);
     u16 addr = (high << 8) | low;
 
-    if(!is_cond) {
-        stack_push(registers.sp);
-        return;
-    }
+    stack_push(registers.pc);
+    registers.pc = addr;
+}
+
+void CPU::call_cc(u8 opcode) {
+    u8 low = mmu.read_byte(registers.pc++);
+    u8 high = mmu.read_byte(registers.pc++);
+    u16 addr = (high << 8) | low;
 
     u8 cond = (opcode >> 3) & 0b11;
     bool call;
@@ -272,24 +275,27 @@ void CPU::call(u8 opcode) {
     }
 
     if(call) {
-        stack_push(registers.sp);
+        stack_push(registers.pc);
         branch_taken = true;
+        registers.pc = addr;
     }
 }
 
 void CPU::pop(u8 opcode) {
-    bool is_ret = (opcode >> 3) & 0b1;
+    u8 index = (opcode >> 4) & 0b11;
+    (registers.*(r16[index].set))(stack_pop());
+}
 
-    if(!is_ret) {
-        u8 index = (opcode >> 4) & 0b11;
-        (registers.*(r16[index].set))(stack_pop());
-    }
+void CPU::push(u8 opcode) {
+    u8 index = (opcode >> 4) & 0b11;
+    stack_push((registers.*(r16[index].get))());
+}
 
-    bool is_cond = opcode & 0b1;
-    if(!is_cond) {
-        registers.pc = stack_pop();
-    }
+void CPU::ret(u8 opcode) {
+    registers.pc = stack_pop();
+}
 
+void CPU::ret_cc(u8 opcode) {
     u8 cond = (opcode >> 3) & 0b11;
     bool ret;
     switch (cond) {
@@ -302,6 +308,35 @@ void CPU::pop(u8 opcode) {
     if(ret) {
         registers.pc = stack_pop();
     }
+}
+
+void CPU::rst(u8 opcode) {
+    u8 tgt = (opcode >> 3) & 0b111;
+
+    u8 vec = 0;
+    switch(tgt) {
+        case 0b000: vec = 0x00;
+        case 0b001: vec = 0x10;
+        case 0b010: vec = 0x20;
+        case 0b011: vec = 0x30;
+        case 0b100: vec = 0x08;
+        case 0b101: vec = 0x18;
+        case 0b110: vec = 0x28;
+        case 0b111: vec = 0x38;
+    }
+    registers.pc = vec;
+}
+
+void CPU::reti(u8 opcode) {
+
+}
+
+void CPU::ei(u8 opcode) {
+    ime = true;
+}
+
+void CPU::di(u8 opcode) {
+    ime = false;
 }
 
 void CPU::init_opcodes() {

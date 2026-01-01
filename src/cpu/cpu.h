@@ -82,6 +82,7 @@ private:
     OpHandler opcode_table[256];
     bool halted;
     bool branch_taken;
+    bool ime;
 
     u8 read_r8(u8 index) {
         return index == 6 ? mmu.read_byte(registers.get_hl()) : *r8[index];
@@ -100,24 +101,38 @@ private:
     void init_opcodes();
     void op_illegal(u8 opcode);
 
+    // ALU (Arithmetic, bitwise) instructions
     u8 alu_add(u8 lhs, u8 rhs, bool carry);
     u8 alu_sub(u8 lhs, u8 rhs, bool carry);
-    // ALU
     void alu_a_r8(u8 opcode);
     void alu_a_imm8(u8 opcode);
     void inc_dec(u8 opcode);
     void inc_dec_r16(u8 opcode);
-    // LD
+
+    // Load instructions
     void ld_r8_r8(u8 opcode);
     void ld_r8_imm8(u8 opcode);
     void ld_r16_imm16(u8 opcode);
     void ld_a(u8 opcode);
 
+    // Jumps & subroutine instructions
     void jp(u8 opcode);
+    void jp_cc(u8 opcode);
     void jr(u8 opcode);
+    void jr_cc(u8 opcode);
     void call(u8 opcode);
-    void ret(u8 opcode);
+    void call_cc(u8 opcode);
     void pop(u8 opcode);
+    void push(u8 opcode);
+    void ret(u8 opcode);
+    void ret_cc(u8 opcode);
+    void reti(u8 opcode);
+    void rst(u8 opcode);
+
+    // Interrupt-related instructions
+    void ei(u8 opcode);
+    void di(u8 opcode);
+    void halt(u8 opcode);
 protected:
     MMU& mmu;
 };
