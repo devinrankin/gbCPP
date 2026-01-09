@@ -146,6 +146,17 @@ void CPU::ld_a(u8 opcode) {
     }
 }
 
+void CPU::rlca(u8 opcode) {
+    registers.f.set_carry((registers.a >> 7) & 0b1);
+    registers.a = (registers.a << 1) | (registers.a >> 7) & 0xFF;
+}
+
+void CPU::rla(u8 opcode) {
+    u8 b7 = (registers.a >> 7) & 0b1;
+    registers.a = (registers.a << 1) | (registers.f.carry()) & 0xFF;
+    registers.f.set_carry(b7);
+}
+
 // todo: n8, r8, and imm8 are similar enough to create grouped functions of
 void CPU::alu_a_r8(u8 opcode) {
     u8& accumulator = registers.a;
@@ -332,6 +343,8 @@ void CPU::reti(u8 opcode) {
 }
 
 void CPU::ei(u8 opcode) {
+    // temporary
+    // EI is supposed to be delayed one cycle (after the next instruction)
     ime = true;
 }
 

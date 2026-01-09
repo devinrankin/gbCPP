@@ -115,6 +115,10 @@ private:
     void ld_r16_imm16(u8 opcode);
     void ld_a(u8 opcode);
 
+    // Bit shift instructions
+    void rlca(u8 opcode);
+    void rla(u8 opcode);
+
     // Jumps & subroutine instructions
     void jp(u8 opcode);
     void jp_cc(u8 opcode);
